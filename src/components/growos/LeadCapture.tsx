@@ -34,7 +34,7 @@ export default function LeadCapture() {
     setIsLoading(true);
 
     try {
-      // Sync with Supabase (fails gracefully if schema isn't created yet)
+      // Sync with Supabase database (fails gracefully if schema isn't created yet)
       const { error: dbError } = await supabase
         .from('leads' as any)
         .insert({
@@ -45,10 +45,27 @@ export default function LeadCapture() {
         });
 
       if (dbError) {
-        console.warn('GrowOS Lead Capture: Supabase sync failed (this is expected if the leads table is not created yet). Proceeding client-side.', dbError);
+        console.warn('GrowOS Lead Capture: Supabase database sync failed.', dbError);
+      }
+
+      // Invoke the Edge Function to send the actual welcome email (if optIn is checked)
+      if (optIn) {
+        const { error: fnError } = await supabase.functions.invoke('send-academy-email', {
+          body: {
+            email: trimmedEmail.toLowerCase(),
+            name: userName || 'Grower',
+            archetypeId: archetype?.id || 'evolver',
+            archetypeName: archetype?.name || 'The Evolver',
+            primaryGoal: primaryGoal || 'mindset',
+          },
+        });
+
+        if (fnError) {
+          console.warn('GrowOS Lead Capture: send-academy-email Edge Function failed.', fnError);
+        }
       }
     } catch (err) {
-      console.warn('GrowOS Lead Capture: Network exception while syncing lead. Proceeding client-side.', err);
+      console.warn('GrowOS Lead Capture: Network exception during lead sync or email delivery.', err);
     }
 
     // Save states locally
