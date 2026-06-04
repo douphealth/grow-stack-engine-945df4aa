@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { useState } from 'react';
 import { useGrowOS } from '@/lib/growos-context';
-import { Sparkles, ArrowRight, Zap } from 'lucide-react';
+import { Sparkles, ArrowRight } from 'lucide-react';
 
 export default function WelcomeScreen() {
   const { setScreen, setUserName } = useGrowOS();
@@ -28,9 +28,11 @@ export default function WelcomeScreen() {
           transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
           className="mb-8"
         >
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl gradient-primary glow-primary mb-4">
-            <Zap className="w-10 h-10 text-primary-foreground" />
-          </div>
+          <img
+            src="/logo.png"
+            alt="GearUpToGrow logo"
+            className="inline-flex items-center justify-center w-20 h-20 rounded-2xl mb-4 object-contain bg-white shadow-lg"
+          />
           <h1 className="text-4xl font-heading font-bold gradient-text">GrowOS</h1>
           <p className="text-muted-foreground mt-1 text-sm tracking-wider uppercase">Your Personal Growth Operating System</p>
         </motion.div>
