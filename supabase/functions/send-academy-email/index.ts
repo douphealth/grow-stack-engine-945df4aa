@@ -79,9 +79,7 @@ function generateHtmlEmail(name: string, archetypeId: string, archetypeName: str
         font-weight: 800;
         margin-top: 10px;
         letter-spacing: 1px;
-        background: linear-gradient(to right, ${primaryColor}, #34d399);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
+        color: ${primaryColor};
       }
       .card {
         background-color: ${cardBg};
@@ -100,6 +98,7 @@ function generateHtmlEmail(name: string, archetypeId: string, archetypeName: str
         font-size: 26px;
         margin: 0 0 5px 0;
         font-weight: 800;
+        color: #ffffff;
       }
       .subtitle {
         color: ${primaryColor};
@@ -214,10 +213,11 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  try {
-    const resendApiKey = Deno.env.get("RESEND_API_KEY");
-    if (!resendApiKey) {
-      console.warn("[SEND-ACADEMY-EMAIL] RESEND_API_KEY is not set. Simulating success in development mode.");
+    // Read Brevo API key from Deno environment variable
+    const brevoApiKey = Deno.env.get("BREVO_API_KEY");
+
+    if (!brevoApiKey) {
+      console.warn("[SEND-ACADEMY-EMAIL] BREVO_API_KEY is not set. Simulating success in development mode.");
       return new Response(
         JSON.stringify({ success: true, message: "Development simulation: email logged to console.", testMode: true }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
@@ -233,35 +233,44 @@ serve(async (req) => {
       });
     }
 
-    // Call Resend API to deliver the transactional welcome email
-    const response = await fetch("https://api.resend.com/emails", {
+    // Call Brevo (Sendinblue) v3 Transactional Email Endpoint
+    const response = await fetch("https://api.brevo.com/v3/smtp/email", {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${resendApiKey}`,
+        "accept": "application/json",
+        "api-key": brevoApiKey,
+        "content-type": "application/json",
       },
       body: JSON.stringify({
-        from: "GrowOS Academy <academy@gearuptogrow.com>",
-        to: [email],
+        sender: {
+          name: "GrowOS Academy",
+          email: "info@gearuptogrow.com", // Make sure this is an authorized sender domain/email in Brevo!
+        },
+        to: [
+          {
+            email: email,
+            name: name || "Grower",
+          }
+        ],
         subject: `🧬 Your ${archetypeName} Growth Blueprint is ready inside...`,
-        html: generateHtmlEmail(name, archetypeId, archetypeName, primaryGoal),
+        htmlContent: generateHtmlEmail(name, archetypeId, archetypeName, primaryGoal),
       }),
     });
 
     const resData = await response.json();
 
     if (!response.ok) {
-      console.error("[SEND-ACADEMY-EMAIL] Resend error response:", resData);
-      throw new Error(resData.message || "Failed to send email via Resend");
+      console.error("[SEND-ACADEMY-EMAIL] Brevo API error response:", resData);
+      throw new Error(resData.message || "Failed to send email via Brevo");
     }
 
-    return new Response(JSON.stringify({ success: true, message: "Email sent successfully", data: resData }), {
+    return new Response(JSON.stringify({ success: true, message: "Email sent successfully via Brevo", data: resData }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
-    console.error("[SEND-ACADEMY-EMAIL] Error sending email:", msg);
+    console.error("[SEND-ACADEMY-EMAIL] Error sending email via Brevo:", msg);
     return new Response(JSON.stringify({ error: msg }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
