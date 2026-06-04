@@ -73,6 +73,69 @@ export default function EmailAcademyHub() {
     return day === 1; // Simulated Day 1 immediately unlocked
   };
 
+  // Parses raw copywriting with markdown into beautiful themed visual blocks for the simulated inbox
+  const renderEmailBody = (bodyText: string) => {
+    return bodyText.split("\n\n").map((para, idx) => {
+      // Process bold elements and links
+      const html = para
+        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" style="color: #10b981; font-weight: 700; text-decoration: none; border-bottom: 1px dashed rgba(16, 185, 129, 0.4);">$1</a>');
+
+      if (para.startsWith("### 🚨 THE BOTTLENECK")) {
+        const cleanContent = html.replace("### 🚨 THE BOTTLENECK", "").trim();
+        return (
+          <div key={idx} className="bg-amber-500/10 border-l-4 border-amber-500 p-4.5 rounded-r-xl my-4.5">
+            <h4 className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+              <span>🚨</span> The Bottleneck
+            </h4>
+            <p className="text-sm text-amber-200/90 leading-relaxed m-0" dangerouslySetInnerHTML={{ __html: cleanContent }} />
+          </div>
+        );
+      }
+
+      if (para.startsWith("### ⚡ THE MICRO-ACTION")) {
+        const cleanContent = html.replace("### ⚡ THE MICRO-ACTION", "").trim();
+        return (
+          <div key={idx} className="bg-emerald-500/10 border-l-4 border-emerald-500 p-4.5 rounded-r-xl my-4.5">
+            <h4 className="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+              <span>⚡</span> The Micro-Action
+            </h4>
+            <div className="text-sm text-emerald-200/90 leading-relaxed" dangerouslySetInnerHTML={{ __html: cleanContent }} />
+          </div>
+        );
+      }
+
+      if (para.startsWith("### 🔬 THE SCIENCE")) {
+        const cleanContent = html.replace("### 🔬 THE SCIENCE", "").trim();
+        return (
+          <div key={idx} className="bg-sky-500/10 border-l-4 border-sky-500 p-4.5 rounded-r-xl my-4.5">
+            <h4 className="text-xs font-bold text-sky-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+              <span>🔬</span> The Scientific Rationale
+            </h4>
+            <p className="text-sm text-sky-200/90 leading-relaxed m-0" dangerouslySetInnerHTML={{ __html: cleanContent }} />
+          </div>
+        );
+      }
+
+      if (para.startsWith("### 🎯 YOUR GROWOS CHALLENGE")) {
+        const cleanContent = html.replace("### 🎯 YOUR GROWOS CHALLENGE", "").trim();
+        return (
+          <div key={idx} className="bg-indigo-500/10 border-l-4 border-indigo-500 p-4.5 rounded-r-xl my-4.5">
+            <h4 className="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+              <span>🎯</span> GrowOS Challenge
+            </h4>
+            <p className="text-sm text-indigo-200/90 leading-relaxed m-0" dangerouslySetInnerHTML={{ __html: cleanContent }} />
+          </div>
+        );
+      }
+
+      // Default paragraph
+      return (
+        <p key={idx} className="text-sm text-foreground/80 leading-relaxed mb-4" dangerouslySetInnerHTML={{ __html: html }} />
+      );
+    });
+  };
+
   return (
     <div className="min-h-screen pb-24 px-5 pt-6 max-w-md mx-auto flex flex-col">
       {/* Header */}
@@ -266,7 +329,7 @@ export default function EmailAcademyHub() {
 
                   {/* Email body */}
                   <div className="flex-1 text-sm text-foreground/90 whitespace-pre-wrap leading-relaxed font-sans min-h-0 overflow-y-auto">
-                    {activeEmailData.body}
+                    {renderEmailBody(activeEmailData.body)}
                   </div>
 
                   {/* CTAs / Action bar */}

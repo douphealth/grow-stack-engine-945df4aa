@@ -4,7 +4,7 @@ import { useGrowOS } from '@/lib/growos-context';
 import { supabase } from '@/integrations/supabase/client';
 import { Mail, ArrowRight, Shield, Sparkles, Check, Loader2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { generatePersonalizedEmail } from '@/lib/growos-emails';
+import { generateHtmlEmail } from '@/lib/growos-emails';
 
 export default function LeadCapture() {
   const { userName, archetype, primaryGoal, setScreen, setUserEmail, setSubscribedToAcademy } = useGrowOS();
@@ -63,54 +63,10 @@ export default function LeadCapture() {
           
           // Schedule all 7 daily emails
           for (let day = 1; day <= 7; day++) {
-            // Generate the personalized email details (subject, badge, copy body)
-            const emailData = generatePersonalizedEmail(day, userName || "Grower", archetype, primaryGoal);
-            
-            // Format markdown headers, bold words, line breaks, and links into proper HTML
-            const formattedBody = emailData.body
-              .replace(/\n/g, '<br />')
-              .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-              .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" style="color: #10b981; font-weight: 600; text-decoration: none;">$1</a>');
+            // Generate the premium, light-theme personalized email layout
+            const emailData = generateHtmlEmail(day, userName || "Grower", archetype, primaryGoal);
 
-            const htmlContent = `
-            <!DOCTYPE html>
-            <html>
-            <head>
-              <meta charset="utf-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1.0">
-              <title>${emailData.subject}</title>
-              <style>
-                body { margin: 0; padding: 0; background-color: #0f172a; font-family: -apple-system, BlinkMacSystemFont, sans-serif; color: #f8fafc; }
-                .container { max-width: 600px; margin: 0 auto; padding: 30px 15px; }
-                .card { background-color: #1e293b; border-radius: 16px; padding: 30px; border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3); }
-                h2 { font-size: 20px; color: #ffffff; font-weight: 800; margin-top: 0; margin-bottom: 10px; }
-                .badge { display: inline-block; background-color: rgba(16, 185, 129, 0.15); color: #10b981; font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 4px 10px; border-radius: 9999px; margin-bottom: 15px; letter-spacing: 0.05em; }
-                p { font-size: 15px; line-height: 1.65; color: #cbd5e1; margin-top: 0; margin-bottom: 18px; }
-                .btn-container { margin: 25px 0 10px 0; text-align: center; }
-                .btn { display: inline-block; background: linear-gradient(135deg, #10b981, #059669); color: white !important; text-decoration: none; padding: 12px 28px; border-radius: 10px; font-weight: 700; font-size: 14px; }
-                .footer { text-align: center; margin-top: 30px; font-size: 11px; color: #64748b; line-height: 1.5; }
-              </style>
-            </head>
-            <body>
-              <div class="container">
-                <div class="card">
-                  <div class="badge">${emailData.badge}</div>
-                  <h2>${emailData.subject}</h2>
-                  <div style="margin-top: 20px;">
-                    ${formattedBody}
-                  </div>
-                  ${day === 1 ? `<div class="btn-container"><a href="https://grow-plan.gearuptogrow.com" class="btn">Open GrowOS Dashboard</a></div>` : ''}
-                </div>
-                <div class="footer">
-                  <p>© 2026 GrowOS. Powered by <a href="https://gearuptogrow.com" style="color: #64748b; text-decoration: underline;">gearuptogrow.com</a></p>
-                  <p>You are receiving this as part of your 7-Day Growth DNA Academy. <a href="#" style="color: #64748b; text-decoration: underline;">Unsubscribe</a> at any time.</p>
-                </div>
-              </div>
-            </body>
-            </html>
-            `;
-
-            // Prepare payload
+            // Prepare payload for Brevo SMTP Transactional Email API
             const payload: any = {
               sender: {
                 name: "GrowOS Academy",
@@ -118,10 +74,10 @@ export default function LeadCapture() {
               },
               to: [{ email: trimmedEmail, name: userName || "Grower" }],
               subject: emailData.subject,
-              htmlContent: htmlContent,
+              htmlContent: emailData.html,
             };
 
-            // Schedule Day 2 through Day 7
+            // Schedule Day 2 through Day 7 (drip sequence)
             if (day > 1) {
               const scheduledDate = new Date(now.getTime() + (day - 1) * 24 * 60 * 60 * 1000);
               payload.scheduledAt = scheduledDate.toISOString();

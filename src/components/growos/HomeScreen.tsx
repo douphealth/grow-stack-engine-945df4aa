@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useGrowOS } from '@/lib/growos-context';
 import { PROTOCOLS, getDimensionColor, getDimensionBg, AFFIRMATIONS } from '@/lib/growos-data';
 import StateCheckIn from './StateCheckIn';
+import QuickBreathingReset from './QuickBreathingReset';
 import { Play, Flame, BookOpen, Trophy, TrendingUp, Crown, User, Sparkles, ChevronRight, Star } from 'lucide-react';
 
 export default function HomeScreen() {
@@ -13,6 +14,7 @@ export default function HomeScreen() {
   } = useGrowOS();
 
   const [showCheckIn, setShowCheckIn] = useState(false);
+  const [showBreathing, setShowBreathing] = useState(false);
   const [affirmation] = useState(() => AFFIRMATIONS[Math.floor(Math.random() * AFFIRMATIONS.length)]);
 
   const protocol = activeProtocol ? PROTOCOLS.find(p => p.id === activeProtocol.id) : null;
@@ -85,6 +87,33 @@ export default function HomeScreen() {
             <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Daily Affirmation</p>
             <p className="text-sm text-foreground/90 italic">"{affirmation}"</p>
           </div>
+        </div>
+      </motion.div>
+
+      {/* Quick Box Breathing Reset */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.18 }}
+        onClick={() => setShowBreathing(true)}
+        className="glass-card p-4 mb-4 hover:bg-secondary/40 transition-all cursor-pointer relative overflow-hidden group border-emerald-500/25"
+      >
+        <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 to-teal-500/5 group-hover:opacity-80 transition-opacity" />
+        <div className="relative z-10 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform">
+              <span className="text-xl">🧘</span>
+            </div>
+            <div className="text-left">
+              <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">Quick state Reset</p>
+              <p className="font-semibold text-foreground text-sm flex items-center gap-1.5">
+                60s Autonomic Box Breathing
+                <span className="text-[9px] font-bold text-emerald-400 bg-emerald-500/10 px-1 py-0.5 rounded leading-none">🧘 RESTORE FOCUS</span>
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">Resynchronize heart rate & reduce cortisol immediately</p>
+            </div>
+          </div>
+          <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all" />
         </div>
       </motion.div>
 
@@ -243,6 +272,13 @@ export default function HomeScreen() {
           ))}
         </div>
       </div>
+
+      {/* Autonomic Box Breathing Reset Overlay */}
+      <AnimatePresence>
+        {showBreathing && (
+          <QuickBreathingReset onClose={() => setShowBreathing(false)} />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
