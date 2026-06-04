@@ -4,6 +4,7 @@ import { useGrowOS } from '@/lib/growos-context';
 import { supabase } from '@/integrations/supabase/client';
 import { Mail, ArrowRight, Shield, Sparkles, Check, Loader2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { generatePersonalizedEmail } from '@/lib/growos-emails';
 
 export default function LeadCapture() {
   const { userName, archetype, primaryGoal, setScreen, setUserEmail, setSubscribedToAcademy } = useGrowOS();
@@ -52,117 +53,118 @@ export default function LeadCapture() {
       if (optIn) {
         const brevoApiKey = import.meta.env.VITE_BREVO_API_KEY;
         const archName = archetype?.name || "The Evolver";
-        const archTitle = archetype?.title || "Growth Maximalist";
         
-        const archetypeTraits: Record<string, { title: string; strengths: string; growth: string; emoji: string }> = {
-          driver: { title: "Relentless Achiever", strengths: "Goal execution, Time management, Discipline", growth: "Work-life balance, Rest, Self-compassion", emoji: "🦁" },
-          thinker: { title: "Deep Analyzer", strengths: "Critical thinking, Strategy, Learning", growth: "Taking action, Overthinking, Decisiveness", emoji: "🦉" },
-          'flow-seeker': { title: "Harmony Hunter", strengths: "Mindfulness, Creativity, Presence", growth: "Structure, Consistency, Planning", emoji: "🌊" },
-          phoenix: { title: "Resilient Riser", strengths: "Resilience, Adaptability, Empathy", growth: "Self-doubt, Patience, Trust", emoji: "🔥" },
-          explorer: { title: "Purpose Seeker", strengths: "Curiosity, Open-mindedness, Versatility", growth: "Focus, Commitment, Depth", emoji: "🧭" },
-          builder: { title: "System Architect", strengths: "Habit formation, Systems thinking, Patience", growth: "Flexibility, Spontaneity, Fun", emoji: "🏗️" },
-          spark: { title: "Energy Dynamo", strengths: "Enthusiasm, Initiative, Energy", growth: "Focus, Follow-through, Rest", emoji: "⚡" },
-          seedling: { title: "Fresh Starter", strengths: "Beginner's mindset, Eagerness, Potential", growth: "Consistency, Patience, Self-belief", emoji: "🌱" },
-          sniper: { title: "Laser Focused", strengths: "Intense focus, Goal clarity, Determination", growth: "Balance, Big picture, Letting go", emoji: "🎯" },
-          evolver: { title: "Growth Maximalist", strengths: "Growth mindset, Self-awareness, Discipline", growth: "Perfectionism, Present moment, Self-acceptance", emoji: "🧬" },
-          guardian: { title: "Wellness Protector", strengths: "Self-care, Boundaries, Emotional intelligence", growth: "Risk-taking, Ambition, Discomfort", emoji: "🛡️" },
-          alchemist: { title: "Chaos Transformer", strengths: "Adaptability, Creativity, Vision", growth: "Stability, Routine, Grounding", emoji: "🌟" },
-        };
+        if (brevoApiKey) {
+          const now = new Date();
+          
+          // Schedule all 7 daily emails
+          for (let day = 1; day <= 7; day++) {
+            // Generate the personalized email details (subject, badge, copy body)
+            const emailData = generatePersonalizedEmail(day, userName || "Grower", archetype, primaryGoal);
+            
+            // Format markdown headers, bold words, line breaks, and links into proper HTML
+            const formattedBody = emailData.body
+              .replace(/\n/g, '<br />')
+              .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+              .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" style="color: #10b981; font-weight: 600; text-decoration: none;">$1</a>');
 
-        const traits = archetypeTraits[archetype?.id || 'evolver'] || archetypeTraits.evolver;
-
-        const htmlContent = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Your Growth DNA Results</title>
-          <style>
-            body { margin: 0; padding: 0; background-color: #0f172a; font-family: sans-serif; color: #f8fafc; }
-            .container { max-width: 600px; margin: 0 auto; padding: 40px 20px; }
-            .card { background-color: #1e293b; border-radius: 16px; padding: 30px; text-align: center; border: 1px solid rgba(255,255,255,0.08); }
-            .archetype-emoji { font-size: 64px; display: block; margin-bottom: 10px; }
-            h1 { font-size: 26px; margin: 0 0 5px 0; color: #ffffff; }
-            .subtitle { color: #10b981; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 20px; }
-            p { font-size: 15px; line-height: 1.6; color: #cbd5e1; }
-            .meta-grid { text-align: left; background-color: rgba(15, 23, 42, 0.4); border-radius: 12px; padding: 20px; margin-bottom: 25px; }
-            .meta-label { font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; display: block; }
-            .meta-value { font-size: 14px; color: #f1f5f9; }
-            .btn { display: inline-block; background: linear-gradient(135deg, #10b981, #059669); color: white !important; text-decoration: none; padding: 14px 30px; border-radius: 12px; font-weight: 700; }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="card">
-              <span class="archetype-emoji">${traits.emoji}</span>
-              <h1>${traits.emoji} ${archName}</h1>
-              <div class="subtitle">${traits.title}</div>
-              <p>Hey ${userName || 'Grower'},</p>
-              <p>Here are your Growth DNA archetype results! You have been subscribed to our 7-Day Growth Academy sequence based on your goal: <strong>${primaryGoal || 'Mindset'}</strong>.</p>
-              <div class="meta-grid">
-                <div style="margin-bottom: 12px;">
-                  <span class="meta-label">Superpowers</span>
-                  <span class="meta-value">${traits.strengths}</span>
+            const htmlContent = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>${emailData.subject}</title>
+              <style>
+                body { margin: 0; padding: 0; background-color: #0f172a; font-family: -apple-system, BlinkMacSystemFont, sans-serif; color: #f8fafc; }
+                .container { max-width: 600px; margin: 0 auto; padding: 30px 15px; }
+                .card { background-color: #1e293b; border-radius: 16px; padding: 30px; border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3); }
+                h2 { font-size: 20px; color: #ffffff; font-weight: 800; margin-top: 0; margin-bottom: 10px; }
+                .badge { display: inline-block; background-color: rgba(16, 185, 129, 0.15); color: #10b981; font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 4px 10px; border-radius: 9999px; margin-bottom: 15px; letter-spacing: 0.05em; }
+                p { font-size: 15px; line-height: 1.65; color: #cbd5e1; margin-top: 0; margin-bottom: 18px; }
+                .btn-container { margin: 25px 0 10px 0; text-align: center; }
+                .btn { display: inline-block; background: linear-gradient(135deg, #10b981, #059669); color: white !important; text-decoration: none; padding: 12px 28px; border-radius: 10px; font-weight: 700; font-size: 14px; }
+                .footer { text-align: center; margin-top: 30px; font-size: 11px; color: #64748b; line-height: 1.5; }
+              </style>
+            </head>
+            <body>
+              <div class="container">
+                <div class="card">
+                  <div class="badge">${emailData.badge}</div>
+                  <h2>${emailData.subject}</h2>
+                  <div style="margin-top: 20px;">
+                    ${formattedBody}
+                  </div>
+                  ${day === 1 ? `<div class="btn-container"><a href="https://grow-plan.gearuptogrow.com" class="btn">Open GrowOS Dashboard</a></div>` : ''}
                 </div>
-                <div>
-                  <span class="meta-label">Growth Focus Areas</span>
-                  <span class="meta-value">${traits.growth}</span>
+                <div class="footer">
+                  <p>© 2026 GrowOS. Powered by <a href="https://gearuptogrow.com" style="color: #64748b; text-decoration: underline;">gearuptogrow.com</a></p>
+                  <p>You are receiving this as part of your 7-Day Growth DNA Academy. <a href="#" style="color: #64748b; text-decoration: underline;">Unsubscribe</a> at any time.</p>
                 </div>
               </div>
-              <a href="https://grow-plan.gearuptogrow.com" class="btn">Open GrowOS Dashboard</a>
-            </div>
-          </div>
-        </body>
-        </html>
-        `;
+            </body>
+            </html>
+            `;
 
-        if (brevoApiKey) {
-          // A. Send Day 1 welcome email via SMTP API
-          const mailRes = await fetch("https://api.brevo.com/v3/smtp/email", {
-            method: "POST",
-            headers: {
-              "accept": "application/json",
-              "api-key": brevoApiKey,
-              "content-type": "application/json",
-            },
-            body: JSON.stringify({
+            // Prepare payload
+            const payload: any = {
               sender: {
                 name: "GrowOS Academy",
-                email: "info@gearuptogrow.com", // Ensure this sender or domain is verified in Brevo!
+                email: "info@gearuptogrow.com", // Ensure this sender is verified in Brevo!
               },
               to: [{ email: trimmedEmail, name: userName || "Grower" }],
-              subject: `🧬 Your ${archName} Growth Blueprint is ready inside...`,
+              subject: emailData.subject,
               htmlContent: htmlContent,
-            }),
-          });
-          
-          const mailData = await mailRes.json();
-          console.log("Brevo SMTP Direct Response:", mailData);
+            };
 
-          // B. Add contact to Brevo list (triggers automation sequence workflows)
-          const contactRes = await fetch("https://api.brevo.com/v3/contacts", {
-            method: "POST",
-            headers: {
-              "accept": "application/json",
-              "api-key": brevoApiKey,
-              "content-type": "application/json",
-            },
-            body: JSON.stringify({
-              email: trimmedEmail,
-              attributes: {
-                FIRSTNAME: userName || "Grower",
-                ARCHETYPE: archName,
-                GOAL: primaryGoal || "Mindset",
+            // Schedule Day 2 through Day 7
+            if (day > 1) {
+              const scheduledDate = new Date(now.getTime() + (day - 1) * 24 * 60 * 60 * 1000);
+              payload.scheduledAt = scheduledDate.toISOString();
+            }
+
+            // Trigger Brevo API call
+            try {
+              const mailRes = await fetch("https://api.brevo.com/v3/smtp/email", {
+                method: "POST",
+                headers: {
+                  "accept": "application/json",
+                  "api-key": brevoApiKey,
+                  "content-type": "application/json",
+                },
+                body: JSON.stringify(payload),
+              });
+              const mailData = await mailRes.json();
+              console.log(`Day ${day} Email scheduled response:`, mailData);
+            } catch (err) {
+              console.error(`Failed to schedule Day ${day} email:`, err);
+            }
+          }
+
+          // 3. Add/Update contact in Brevo contacts list (optional backup triggers)
+          try {
+            await fetch("https://api.brevo.com/v3/contacts", {
+              method: "POST",
+              headers: {
+                "accept": "application/json",
+                "api-key": brevoApiKey,
+                "content-type": "application/json",
               },
-              updateEnabled: true,
-            }),
-          });
-          
-          const contactData = await contactRes.json();
-          console.log("Brevo Contact Add Response:", contactData);
+              body: JSON.stringify({
+                email: trimmedEmail,
+                attributes: {
+                  FIRSTNAME: userName || "Grower",
+                  ARCHETYPE: archName,
+                  GOAL: primaryGoal || "Mindset",
+                },
+                updateEnabled: true,
+              }),
+            });
+          } catch (err) {
+            console.error("Brevo contact sync error:", err);
+          }
         } else {
-          console.warn("VITE_BREVO_API_KEY is not defined in environment variables. Email simulation active.");
+          console.warn("VITE_BREVO_API_KEY is not defined. Email sequence simulation active.");
         }
       }
     } catch (err) {
