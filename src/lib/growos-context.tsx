@@ -113,6 +113,13 @@ export interface GrowOSContextValue {
   setUserEmail: (email: string) => void;
   subscribedToAcademy: boolean;
   setSubscribedToAcademy: (subbed: boolean) => void;
+  // Quiz progress survives the email gate between Question 2 and Question 3.
+  quizAnswers: Record<number, string>;
+  setQuizAnswers: (answers: Record<number, string>) => void;
+  quizQuestionIndex: number;
+  setQuizQuestionIndex: (index: number) => void;
+  leadCaptureStage: 'mid-quiz' | 'results';
+  setLeadCaptureStage: (stage: 'mid-quiz' | 'results') => void;
   academyEmailsRead: Record<number, boolean>;
   markEmailAsRead: (day: number) => void;
 
@@ -185,6 +192,9 @@ export function GrowOSProvider({ children }: { children: ReactNode }) {
   const [userName, setUserName] = useState('');
   const [userEmail, setUserEmail] = useState('');
   const [subscribedToAcademy, setSubscribedToAcademy] = useState(false);
+  const [quizAnswers, setQuizAnswers] = useState<Record<number, string>>({});
+  const [quizQuestionIndex, setQuizQuestionIndex] = useState(0);
+  const [leadCaptureStage, setLeadCaptureStage] = useState<'mid-quiz' | 'results'>('results');
   const [academyEmailsRead, setAcademyEmailsRead] = useState<Record<number, boolean>>({});
   const [archetype, setArchetype] = useState<GrowthArchetype | null>(null);
   const [primaryGoal, setPrimaryGoal] = useState('');
@@ -224,6 +234,9 @@ export function GrowOSProvider({ children }: { children: ReactNode }) {
         if (data.userName) setUserName(data.userName);
         if (data.userEmail) setUserEmail(data.userEmail);
         if (data.subscribedToAcademy !== undefined) setSubscribedToAcademy(data.subscribedToAcademy);
+        if (data.quizAnswers) setQuizAnswers(data.quizAnswers);
+        if (typeof data.quizQuestionIndex === 'number') setQuizQuestionIndex(data.quizQuestionIndex);
+        if (data.leadCaptureStage === 'mid-quiz' || data.leadCaptureStage === 'results') setLeadCaptureStage(data.leadCaptureStage);
         if (data.archetypeId) {
           const found = ARCHETYPES.find(a => a.id === data.archetypeId);
           if (found) setArchetype(found);
@@ -290,6 +303,9 @@ export function GrowOSProvider({ children }: { children: ReactNode }) {
         userName,
         userEmail,
         subscribedToAcademy,
+        quizAnswers,
+        quizQuestionIndex,
+        leadCaptureStage,
         archetypeId: archetype?.id || null,
         primaryGoal,
         growthScore,
@@ -301,7 +317,7 @@ export function GrowOSProvider({ children }: { children: ReactNode }) {
     } catch (e) {
       console.warn('GrowOS: Failed to save state', e);
     }
-  }, [userName, userEmail, subscribedToAcademy, archetype, primaryGoal, growthScore, isPro, activeProtocol, completedToday, screen]);
+  }, [userName, userEmail, subscribedToAcademy, quizAnswers, quizQuestionIndex, leadCaptureStage, archetype, primaryGoal, growthScore, isPro, activeProtocol, completedToday, screen]);
 
   // Persist journal
   useEffect(() => {
@@ -384,6 +400,9 @@ export function GrowOSProvider({ children }: { children: ReactNode }) {
     userName, setUserName,
     userEmail, setUserEmail,
     subscribedToAcademy, setSubscribedToAcademy,
+    quizAnswers, setQuizAnswers,
+    quizQuestionIndex, setQuizQuestionIndex,
+    leadCaptureStage, setLeadCaptureStage,
     academyEmailsRead, markEmailAsRead,
     archetype, setArchetype,
     primaryGoal, setPrimaryGoal,

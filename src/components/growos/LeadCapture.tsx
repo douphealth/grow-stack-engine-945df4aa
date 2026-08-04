@@ -1,22 +1,62 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useGrowOS } from '@/lib/growos-context';
 import { supabase } from '@/integrations/supabase/client';
 import { Mail, ArrowRight, Shield, Sparkles, Check, Loader2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { generateHtmlEmail } from '@/lib/growos-emails';
+
 
 export default function LeadCapture() {
-  const { userName, archetype, primaryGoal, setScreen, setUserEmail, setSubscribedToAcademy } = useGrowOS();
+  const {
+    userName,
+    userEmail,
+    archetype,
+    primaryGoal,
+    setScreen,
+    setUserEmail,
+    setSubscribedToAcademy,
+    subscribedToAcademy,
+    leadCaptureStage,
+    setLeadCaptureStage,
+  } = useGrowOS();
   const [email, setEmail] = useState('');
   const [optIn, setOptIn] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isMidQuiz = leadCaptureStage === 'mid-quiz';
+  const autoSubmitted = useRef(false);
 
   // Email regex helper
   const isValidEmail = (val: string) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
   };
+
+  const sendAcademyEmail = useCallback(async (emailAddress: string) => {
+    const { error: functionError } = await supabase.functions.invoke('send-academy-email', {
+      body: {
+        email: emailAddress,
+        name: userName || 'Grower',
+        archetypeId: archetype?.id || 'evolver',
+        archetypeName: archetype?.name || 'The Evolver',
+        primaryGoal: primaryGoal || 'mindset',
+      },
+    });
+    if (functionError) throw functionError;
+  }, [archetype, primaryGoal, userName]);
+
+  // If the visitor captured an email after Question 2, finish the sequence
+  // server-side after the final archetype is calculated without asking twice.
+  useEffect(() => {
+    if (isMidQuiz || !userEmail || !archetype || !subscribedToAcademy || autoSubmitted.current) return;
+    autoSubmitted.current = true;
+    setIsLoading(true);
+    sendAcademyEmail(userEmail)
+      .catch((sendError) => console.warn('GrowOS Academy delivery failed:', sendError))
+      .finally(() => {
+        setIsLoading(false);
+        setScreen('archetype-reveal');
+      });
+  }, [isMidQuiz, userEmail, archetype, subscribedToAcademy, sendAcademyEmail, setScreen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,119 +74,48 @@ export default function LeadCapture() {
 
     setIsLoading(true);
 
-    try {
-      // 1. Sync with Supabase database (fails gracefully if schema isn't created yet)
-      const { error: dbError } = await supabase
-        .from('leads' as any)
-        .insert({
-          email: trimmedEmail.toLowerCase(),
-          name: userName || 'Grower',
-          archetype: archetype?.id || 'evolver',
-          primary_goal: primaryGoal || 'mindset',
-        });
-
-      if (dbError) {
-        console.warn('GrowOS Lead Capture: Supabase database sync failed.', dbError);
-      }
-
-      // 2. Direct client-side Brevo API calls (if optIn is checked)
-      if (optIn) {
-        const p1 = "eGtleXNpYi0zNTIxNjE1OWViMWYzMjgzNTQ0MGI0ODBjYTYzODU5MGNhOT";
-        const p2 = "gwNWFhOTkzMDMyY2VhMGJlYTIzYzZhMWE1MWMzLWVYOHQz";
-        const p3 = "ZXlGeEJWMXhPbms=";
-        const obfuscatedKey = p1 + p2 + p3;
-        const brevoApiKey = import.meta.env.VITE_BREVO_API_KEY || atob(obfuscatedKey);
-        const archName = archetype?.name || "The Evolver";
-        
-        if (brevoApiKey) {
-          const now = new Date();
-          
-          // Schedule all 7 daily emails
-          for (let day = 1; day <= 7; day++) {
-            // Generate the premium, light-theme personalized email layout
-            const emailData = generateHtmlEmail(day, userName || "Grower", archetype, primaryGoal);
-
-            // Prepare payload for Brevo SMTP Transactional Email API
-            const payload: any = {
-              sender: {
-                name: "GrowOS Academy",
-                email: "info@gearuptogrow.com", // Ensure this sender is verified in Brevo!
-              },
-              to: [{ email: trimmedEmail, name: userName || "Grower" }],
-              subject: emailData.subject,
-              htmlContent: emailData.html,
-            };
-
-            // Schedule Day 2 through Day 7 (drip sequence)
-            if (day > 1) {
-              const scheduledDate = new Date(now.getTime() + (day - 1) * 24 * 60 * 60 * 1000);
-              payload.scheduledAt = scheduledDate.toISOString();
-            }
-
-            // Trigger Brevo API call
-            try {
-              const mailRes = await fetch("https://api.brevo.com/v3/smtp/email", {
-                method: "POST",
-                headers: {
-                  "accept": "application/json",
-                  "api-key": brevoApiKey,
-                  "content-type": "application/json",
-                },
-                body: JSON.stringify(payload),
-              });
-              const mailData = await mailRes.json();
-              console.log(`Day ${day} Email scheduled response:`, mailData);
-            } catch (err) {
-              console.error(`Failed to schedule Day ${day} email:`, err);
-            }
-          }
-
-          // 3. Add/Update contact in Brevo contacts list (optional backup triggers)
-          try {
-            await fetch("https://api.brevo.com/v3/contacts", {
-              method: "POST",
-              headers: {
-                "accept": "application/json",
-                "api-key": brevoApiKey,
-                "content-type": "application/json",
-              },
-              body: JSON.stringify({
-                email: trimmedEmail,
-                attributes: {
-                  FIRSTNAME: userName || "Grower",
-                  ARCHETYPE: archName,
-                  GOAL: primaryGoal || "Mindset",
-                },
-                updateEnabled: true,
-              }),
-            });
-          } catch (err) {
-            console.error("Brevo contact sync error:", err);
-          }
-        } else {
-          console.warn("VITE_BREVO_API_KEY is not defined. Email sequence simulation active.");
-        }
-      }
-    } catch (err) {
-      console.error('GrowOS Lead Capture direct Brevo call failed:', err);
+    const normalizedEmail = trimmedEmail.toLowerCase();
+    const { error: dbError } = await supabase.from('leads').insert({
+      email: normalizedEmail,
+      name: userName || 'Grower',
+      archetype: isMidQuiz ? 'quiz-in-progress' : archetype?.id || 'evolver',
+      primary_goal: isMidQuiz ? 'pending' : primaryGoal || 'mindset',
+    });
+    if (dbError && !/duplicate|already exists|unique/i.test(dbError.message)) {
+      console.warn('GrowOS Lead Capture: lead storage failed.', dbError);
     }
 
-    // Save states locally
-    setUserEmail(trimmedEmail);
+    setUserEmail(normalizedEmail);
     setSubscribedToAcademy(optIn);
-    
-    // Simulate slight delay for professional loading feel
-    setTimeout(() => {
-      setIsLoading(false);
-      toast.success('Blueprint generated & sequence active! 🧬');
-      setScreen('archetype-reveal');
-    }, 1000);
+    setIsLoading(false);
+
+    if (isMidQuiz) {
+      setLeadCaptureStage('results');
+      toast.success('Saved. Continue the assessment to reveal your path.');
+      setScreen('quiz');
+      return;
+    }
+
+    if (optIn) {
+      try {
+        await sendAcademyEmail(normalizedEmail);
+      } catch (sendError) {
+        console.warn('GrowOS Academy delivery failed:', sendError);
+      }
+    }
+    toast.success('Blueprint generated. Your result is ready.');
+    setScreen('archetype-reveal');
   };
 
   const handleSkip = () => {
     // Graceful skip option for high-trust user experience
     setSubscribedToAcademy(false);
-    setScreen('archetype-reveal');
+    if (isMidQuiz) {
+      setLeadCaptureStage('results');
+      setScreen('quiz');
+    } else {
+      setScreen('archetype-reveal');
+    }
   };
 
   return (
@@ -172,11 +141,15 @@ export default function LeadCapture() {
             className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-xs font-semibold text-primary mb-3"
           >
             <Sparkles className="w-3.5 h-3.5" />
-            Growth DNA Analysis Complete
+            {isMidQuiz ? 'Your personalized path starts here' : 'Growth DNA Analysis Complete'}
           </motion.div>
-          <h1 className="text-3xl font-heading font-bold text-foreground">Your Blueprint is Ready!</h1>
+          <h1 className="text-3xl font-heading font-bold text-foreground">
+            {isMidQuiz ? 'Unlock the rest of your assessment' : 'Your Blueprint is Ready!'}
+          </h1>
           <p className="text-muted-foreground text-sm mt-2 leading-relaxed">
-            Hey <span className="text-foreground font-semibold">{userName || 'Grower'}</span>, we've analyzed your responses. Before we reveal your archetype, lock in your resources below:
+            {isMidQuiz
+              ? <>Enter your email to save your first answers and continue with the remaining questions.</>
+              : <>Hey <span className="text-foreground font-semibold">{userName || 'Grower'}</span>, your assessment is complete. Enter your email to receive the result and optional Academy follow-up.</>}
           </p>
         </div>
 
@@ -188,11 +161,15 @@ export default function LeadCapture() {
             {/* Offer Stack Checklist */}
             <div className="space-y-3">
               <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">What you're getting:</p>
-              {[
+              {(isMidQuiz ? [
+                { title: 'Saved quiz progress', desc: 'Your first two answers stay attached to this assessment' },
+                { title: 'Personalized result path', desc: 'Continue to the remaining questions without restarting' },
+                { title: 'Optional Growth Academy', desc: 'Receive practical follow-up emails only with your consent' }
+              ] : [
                 { title: 'Personalized Growth Archetype Card', desc: 'Identify your ultimate superpowers & shadows' },
                 { title: '10-Page Custom Blueprint PDF', desc: 'Step-by-step action guide based on your profile' },
                 { title: '7-Day High-Performance Email Academy', desc: 'Daily science-backed protocols & micro-actions' }
-              ].map((item, idx) => (
+              ]).map((item, idx) => (
                 <div key={idx} className="flex gap-2.5 items-start">
                   <div className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0 mt-0.5">
                     <Check className="w-3 h-3 text-emerald-400" />
@@ -272,7 +249,7 @@ export default function LeadCapture() {
                 ) : (
                   <>
                     <Sparkles className="w-4.5 h-4.5" />
-                    Reveal My Archetype & Get Blueprint
+                    {isMidQuiz ? 'Save & Continue Assessment' : 'Reveal My Archetype & Get Blueprint'}
                     <ArrowRight className="w-4.5 h-4.5" />
                   </>
                 )}
@@ -288,7 +265,7 @@ export default function LeadCapture() {
             disabled={isLoading}
             className="text-xs text-muted-foreground hover:text-foreground font-medium underline transition-colors"
           >
-            Skip bonuses and just show my results
+            {isMidQuiz ? 'Skip email and continue the assessment' : 'Skip email and just show my results'}
           </button>
           
           <div className="flex items-center justify-center gap-4 text-[10px] text-muted-foreground">
