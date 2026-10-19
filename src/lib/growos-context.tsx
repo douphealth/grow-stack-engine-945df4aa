@@ -219,10 +219,8 @@ export function GrowOSProvider({ children }: { children: ReactNode }) {
   // Handle payment success from URL
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get('payment') === 'success') {
-      setIsPro(true);
-      window.history.replaceState({}, '', window.location.pathname);
-    }
+    // Redirect parameters are never payment proof.
+    if (params.has('payment')) window.history.replaceState({}, '', window.location.pathname);
   }, []);
 
   // Hydrate from localStorage
@@ -243,7 +241,7 @@ export function GrowOSProvider({ children }: { children: ReactNode }) {
         }
         if (data.primaryGoal) setPrimaryGoal(data.primaryGoal);
         if (data.growthScore) setGrowthScore(data.growthScore);
-        if (data.isPro) setIsPro(data.isPro);
+        // Legacy browser storage is not a Pro entitlement.
         if (data.activeProtocol) setActiveProtocol(data.activeProtocol);
 
         // Date-aware daily reset
@@ -309,7 +307,6 @@ export function GrowOSProvider({ children }: { children: ReactNode }) {
         archetypeId: archetype?.id || null,
         primaryGoal,
         growthScore,
-        isPro,
         activeProtocol,
         screen,
         lastCompletedDate: completedToday ? getTodayKey() : null,
@@ -317,7 +314,7 @@ export function GrowOSProvider({ children }: { children: ReactNode }) {
     } catch (e) {
       console.warn('GrowOS: Failed to save state', e);
     }
-  }, [userName, userEmail, subscribedToAcademy, quizAnswers, quizQuestionIndex, leadCaptureStage, archetype, primaryGoal, growthScore, isPro, activeProtocol, completedToday, screen]);
+  }, [userName, userEmail, subscribedToAcademy, quizAnswers, quizQuestionIndex, leadCaptureStage, archetype, primaryGoal, growthScore, activeProtocol, completedToday, screen]);
 
   // Persist journal
   useEffect(() => {
