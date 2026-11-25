@@ -272,7 +272,9 @@ export function GrowOSProvider({ children }: { children: ReactNode }) {
     setCheckoutStatus('verifying');
     const r = await claimPurchase({ ref: pending?.ref, session_id: sessionId });
     if (r.ok && finishCheckout(r)) return true;
-    if (r.pending || r.error === 'network') {
+    // A 5xx (other than "not configured") is a temporary server problem, not a verdict: keep waiting.
+    const transient = r.error === 'temporarily_unavailable' || (r.status >= 500 && r.error !== 'not_configured');
+    if (r.pending || r.error === 'network' || transient) {
       setCheckoutStatus(pending ? 'waiting' : 'idle');
     } else {
       setCheckoutStatus('error');
@@ -352,7 +354,11 @@ export function GrowOSProvider({ children }: { children: ReactNode }) {
       redeemRestore(restore).then((r) => {
         if (!(r.ok && finishCheckout(r))) {
           setCheckoutStatus('error');
-          setCheckoutError('That restore link has expired or was already replaced. Request a new one below.');
+          setCheckoutError(
+            r.status >= 500 || r.error === 'network'
+              ? 'Our purchase server is busy right now. Open the link in your e-mail again in a few minutes (it stays valid for 30 minutes).'
+              : 'That restore link has expired or was already replaced. Request a new one below.',
+          );
           setScreen('upgrade');
         }
       });

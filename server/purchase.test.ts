@@ -253,3 +253,18 @@ describe('add-on delivery and events', () => {
     expect(rows).toEqual([{ day: new Date().toISOString().slice(0, 10), name: 'plan_generated', count: 1 }]);
   });
 });
+
+describe('api middleware', () => {
+  it('turns an exception (e.g. D1 read limit) into a JSON 503 with retry', async () => {
+    const { onRequest } = await import('../functions/api/_middleware');
+    const res = await onRequest({ next: async () => { throw new Error('D1_ERROR: daily read limit exceeded'); } });
+    expect(res.status).toBe(503);
+    expect(res.headers.get('retry-after')).toBe('60');
+    expect(await res.json()).toEqual({ ok: false, error: 'temporarily_unavailable', retry: true });
+  });
+  it('passes normal responses through untouched', async () => {
+    const { onRequest } = await import('../functions/api/_middleware');
+    const res = await onRequest({ next: async () => new Response(null, { status: 204 }) });
+    expect(res.status).toBe(204);
+  });
+});

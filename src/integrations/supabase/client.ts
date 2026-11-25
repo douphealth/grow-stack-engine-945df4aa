@@ -2,7 +2,13 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = "https://qhdjbrwezqddnvypocbh.supabase.co";
+// The Supabase project is gone. On the production domain the Cloudflare Worker
+// `gearuptogrow-growplan-selfhosted-proxy` answers /rest/v1/* and /functions/v1/* (lead shim → Brevo),
+// so use the same origin there instead of relying on the Worker rewriting this literal in every chunk.
+const SUPABASE_URL =
+  typeof location !== "undefined" && location.hostname === "grow-plan.gearuptogrow.com"
+    ? "https://grow-plan.gearuptogrow.com"
+    : "https://qhdjbrwezqddnvypocbh.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFoZGpicndlenFkZG52eXBvY2JoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1NjU5NzEsImV4cCI6MjA5MTE0MTk3MX0.4SHVn4iUcp0ZzSZK1t6c6GF-TAcaGOW0cxkC6hnOCJk";
 
 // Import the supabase client like this:
