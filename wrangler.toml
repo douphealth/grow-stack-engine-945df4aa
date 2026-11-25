@@ -17,6 +17,7 @@ database_id = "6edd9853-bb93-4504-95fd-4440ac3c4659"
 
 [env.production.vars]
 MAIL_FROM = "info@gearuptogrow.com"
+APP_ORIGIN = "https://grow-plan.gearuptogrow.com"
 
 [[env.production.d1_databases]]
 binding = "DB"

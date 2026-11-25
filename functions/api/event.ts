@@ -11,7 +11,7 @@ const CLIENT_EVENTS = new Set<string>(FUNNEL_EVENTS.filter((e) => e !== 'purchas
 
 export const onRequestPost = async (ctx: Ctx) => {
   const { request, env } = ctx;
-  if (!sameOriginOrNoOrigin(request)) return new Response(null, { status: 403 });
+  if (!sameOriginOrNoOrigin(request, env)) return new Response(null, { status: 403 });
   const body = await readJson<{ name?: string }>(request, 256);
   if (!body?.name || !CLIENT_EVENTS.has(body.name)) return json({ ok: false }, 400);
   if (env.DB) ctx.waitUntil(ensureSchema(env.DB).then(() => countEvent(env.DB!, body.name!)).catch(() => undefined));

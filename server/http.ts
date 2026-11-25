@@ -25,12 +25,24 @@ export async function readJson<T = Record<string, unknown>>(request: Request, ma
   }
 }
 
-/** Reject cross-site POSTs from browsers (CSRF on state-changing endpoints). */
-export function sameOriginOrNoOrigin(request: Request): boolean {
+/**
+ * Public origin of the app. Behind the Cloudflare Worker proxy the request reaches Pages on
+ * *.pages.dev, so links in e-mails must use APP_ORIGIN (https://grow-plan.gearuptogrow.com).
+ */
+export function appOrigin(env: { APP_ORIGIN?: string }, request: Request): string {
+  const configured = (env.APP_ORIGIN || '').trim().replace(/\/+$/, '');
+  return /^https:\/\/[a-z0-9.-]+$/i.test(configured) ? configured : new URL(request.url).origin;
+}
+
+/** Reject cross-site POSTs from browsers (CSRF on state-changing endpoints). The app's own
+ * public origin (APP_ORIGIN, served through the Worker) counts as same-origin. */
+export function sameOriginOrNoOrigin(request: Request, env: { APP_ORIGIN?: string } = {}): boolean {
   const origin = request.headers.get('origin');
   if (!origin) return true;
   try {
-    return new URL(origin).host === new URL(request.url).host;
+    const host = new URL(origin).host;
+    if (host === new URL(request.url).host) return true;
+    return Boolean(env.APP_ORIGIN) && host === new URL(appOrigin(env, request)).host;
   } catch {
     return false;
   }

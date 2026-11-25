@@ -268,3 +268,33 @@ describe('api middleware', () => {
     expect(res.status).toBe(204);
   });
 });
+
+describe('behind the Worker proxy (request on *.pages.dev, browser Origin = APP_ORIGIN)', () => {
+  const UP = 'https://grow-stack-engine-945df4aa.pages.dev';
+  const proxied = (path: string, body: unknown, origin: string): Ctx => ({
+    request: new Request(`${UP}${path}`, { method: 'POST', headers: { 'content-type': 'application/json', origin }, body: JSON.stringify(body) }),
+    env, params: {}, waitUntil: (p) => { waits.push(p); },
+  });
+
+  it('accepts the public origin when APP_ORIGIN is set, rejects others', async () => {
+    const ref = 'gos_' + 'b'.repeat(32);
+    expect((await claim(proxied('/api/license/claim', { ref }, ORIGIN))).status).toBe(403);
+    env.APP_ORIGIN = ORIGIN;
+    expect((await claim(proxied('/api/license/claim', { ref }, ORIGIN))).status).toBe(200);
+    expect((await claim(proxied('/api/license/claim', { ref }, 'https://evil.example'))).status).toBe(403);
+  });
+
+  it('restore links point at APP_ORIGIN, not the pages.dev host', async () => {
+    env.APP_ORIGIN = ORIGIN;
+    const s = session({ id: 'cs_test_proxyRestore0001' });
+    sessions[s.id] = s;
+    await claim(proxied('/api/license/claim', { session_id: s.id }, ORIGIN));
+    await settle();
+    mails = [];
+    await restore(proxied('/api/license/restore', { email: 'buyer@example.com' }, ORIGIN));
+    await settle();
+    const link = mails.find((m) => m.subject === 'Your GrowOS restore link')!.html;
+    expect(link).toContain(`${ORIGIN}/?restore=`);
+    expect(link).not.toContain('pages.dev');
+  });
+});
