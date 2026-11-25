@@ -63,15 +63,9 @@ npx wrangler pages dev dist --d1 DB --binding LICENSE_SECRET=dev --binding STRIP
 npx vitest run           # 23 tests: tokens, webhook signature, claim/restore/refund, downloads, app entitlement
 ```
 
-## Production cutover (needs owner approval: Cloudflare Worker change)
+## Production cutover
 
-The domain is served by the Worker `gearuptogrow-growplan-selfhosted-proxy`, which proxies an
-older build on `grow-stack-engine.gearup-flow-master.pages.dev`. To go live:
-1. Create D1 + secrets above on the `grow-stack-engine-945df4aa` Pages project; merge to `main`.
-2. In the Worker, change the upstream host to `grow-stack-engine-945df4aa.pages.dev`. Its existing
-   `/payment-success` page already forwards `session_id` to `/?payment=success&session_id=…`.
-   Unknown paths (including `/api/license/*`) are proxied through unchanged.
-3. Verify: `/api/config` returns `licensing:true`; buy once in Stripe test mode on a preview.
+See [CUTOVER.md](CUTOVER.md): what is already prepared, the D1 free-tier blocker, and the ordered owner steps.
 
 ## Rollback
 
