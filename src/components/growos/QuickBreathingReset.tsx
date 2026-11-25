@@ -1,3 +1,4 @@
+import { haptic } from '@/lib/utils';
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGrowOS } from '@/lib/growos-context';
@@ -25,7 +26,7 @@ export default function QuickBreathingReset({ onClose }: QuickBreathingResetProp
     setPhase('inhale');
     setRound(1);
     setSecondsLeft(phaseDuration);
-    navigator.vibrate?.(50);
+    haptic(50);
   };
 
   // Run the countdown timer and handle phase transition loops
@@ -39,7 +40,7 @@ export default function QuickBreathingReset({ onClose }: QuickBreathingResetProp
       setSecondsLeft((prev) => {
         if (prev <= 1) {
           // Trigger transition vibration
-          navigator.vibrate?.([30]);
+          haptic([30]);
 
           // Move to next phase in the Box Breathing cycle
           setPhase((currentPhase) => {
@@ -75,7 +76,7 @@ export default function QuickBreathingReset({ onClose }: QuickBreathingResetProp
   }, [phase, round]);
 
   const handleCompletion = () => {
-    navigator.vibrate?.([100, 50, 100]);
+    haptic([100, 50, 100]);
     // Add 5 points to the growth score
     setGrowthScore(growthScore + 5);
     // Log completion

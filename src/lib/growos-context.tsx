@@ -1,5 +1,15 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useRef, useCallback, ReactNode } from 'react';
 import { GrowthArchetype, MicroAction, MORNING_STACK, ARCHETYPES } from './growos-data';
+import type { AddonId, Entitlement } from '../../shared/catalog';
+import {
+  LICENSE_KEY, DEFAULT_CONFIG, checkoutUrl, claimPurchase, fetchPurchaseConfig, loadLicense, loadPending,
+  newRef, redeemRestore, saveLicense, savePending, track, verifyLicense,
+  type PurchaseConfig, type StoredLicense,
+} from './license';
+
+/** Where PRO came from: a server-verified license, or the pre-2026-11 browser flag (grandfathered). */
+export type LicenseSource = 'license' | 'legacy' | null;
+export type CheckoutStatus = 'idle' | 'waiting' | 'verifying' | 'error';
 
 export type AppScreen =
   | 'welcome'
@@ -15,6 +25,7 @@ export type AppScreen =
   | 'journal'
   | 'profile'
   | 'upgrade'
+  | 'purchase-success'
   | 'analytics'
   | 'email-academy';
 
@@ -90,9 +101,18 @@ export interface GrowOSContextValue {
   activeProtocol: ActiveProtocol | null;
   setActiveProtocol: (p: ActiveProtocol | null) => void;
 
-  // Premium
+  // Premium (read-only: only a verified license or the grandfathered legacy flag sets it)
   isPro: boolean;
-  setIsPro: (b: boolean) => void;
+  entitlements: Entitlement[];
+  licenseSource: LicenseSource;
+  license: StoredLicense | null;
+  purchaseConfig: PurchaseConfig;
+  checkoutStatus: CheckoutStatus;
+  checkoutError: string | null;
+  startCheckout: (addons: AddonId[]) => void;
+  checkPurchaseNow: () => Promise<boolean>;
+  cancelPendingCheckout: () => void;
+  applyLicense: (l: { token: string; entitlements: Entitlement[]; email?: string }) => void;
 
   // Journal
   journalEntries: JournalEntry[];
@@ -208,7 +228,11 @@ export function GrowOSProvider({ children }: { children: ReactNode }) {
   const [timeAvailable, setTimeAvailable] = useState(10);
   const [currentStack, setCurrentStack] = useState<MicroAction[]>(MORNING_STACK);
   const [activeProtocol, setActiveProtocol] = useState<ActiveProtocol | null>(null);
-  const [isPro, setIsPro] = useState(false);
+  const [license, setLicense] = useState<StoredLicense | null>(null);
+  const [legacyPro, setLegacyPro] = useState(false);
+  const [purchaseConfig, setPurchaseConfig] = useState<PurchaseConfig>(DEFAULT_CONFIG);
+  const [checkoutStatus, setCheckoutStatus] = useState<CheckoutStatus>('idle');
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
   const [dailyLogs, setDailyLogs] = useState<DailyLog[]>([]);
   const [notificationsEnabled, setNotificationsEnabledState] = useState(false);
@@ -216,13 +240,146 @@ export function GrowOSProvider({ children }: { children: ReactNode }) {
 
   const todayKey = getTodayKey();
 
-  // Handle payment success from URL
+  // ── Entitlements ────────────────────────────────────────────────────────────
+  const entitlements: Entitlement[] = license?.entitlements?.length
+    ? license.entitlements
+    : legacyPro ? ['pro'] : [];
+  const isPro = entitlements.includes('pro');
+  const licenseSource: LicenseSource = license?.entitlements?.includes('pro') ? 'license' : legacyPro ? 'legacy' : null;
+  const pollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const applyLicense = useCallback((l: { token: string; entitlements: Entitlement[]; email?: string }) => {
+    const stored: StoredLicense = { token: l.token, entitlements: l.entitlements, email: l.email, verifiedAt: Date.now() };
+    saveLicense(stored);
+    setLicense(stored);
+  }, []);
+
+  const finishCheckout = useCallback((r: { token?: string; entitlements?: Entitlement[]; email?: string }) => {
+    if (!r.token || !r.entitlements) return false;
+    applyLicense({ token: r.token, entitlements: r.entitlements, email: r.email });
+    savePending(null);
+    if (pollTimer.current) clearTimeout(pollTimer.current);
+    setCheckoutStatus('idle');
+    setCheckoutError(null);
+    setScreen('purchase-success');
+    return true;
+  }, [applyLicense]);
+
+  /** One claim attempt for the open checkout (ref) or a Stripe redirect (session_id). */
+  const checkPurchaseNow = useCallback(async (sessionId?: string) => {
+    const pending = loadPending();
+    if (!pending && !sessionId) return false;
+    setCheckoutStatus('verifying');
+    const r = await claimPurchase({ ref: pending?.ref, session_id: sessionId });
+    if (r.ok && finishCheckout(r)) return true;
+    if (r.pending || r.error === 'network') {
+      setCheckoutStatus(pending ? 'waiting' : 'idle');
+    } else {
+      setCheckoutStatus('error');
+      setCheckoutError(
+        r.error === 'not_configured'
+          ? 'Purchase verification is not switched on for this preview.'
+          : 'We could not confirm this payment automatically. Use "Restore purchase" with the e-mail you paid with, or contact us.',
+      );
+    }
+    return false;
+  }, [finishCheckout]);
+
+  // Poll while a checkout tab is open: every 5 s for 30 min, only while this tab is visible.
+  const schedulePoll = useCallback((startedAt: number) => {
+    if (pollTimer.current) clearTimeout(pollTimer.current);
+    pollTimer.current = setTimeout(async () => {
+      if (!loadPending() || Date.now() - startedAt > 30 * 60_000) { setCheckoutStatus((s) => (s === 'waiting' ? 'idle' : s)); return; }
+      if (document.visibilityState === 'visible' && (await checkPurchaseNow())) return;
+      schedulePoll(startedAt);
+    }, 5000);
+  }, [checkPurchaseNow]);
+
+  const startCheckout = useCallback((addons: AddonId[]) => {
+    const pending = { ref: newRef(), addons, startedAt: Date.now() };
+    savePending(pending);
+    track('checkout_reached');
+    const url = checkoutUrl(addons, pending.ref, userEmail);
+    const w = window.open(url, '_blank');
+    if (!w) {
+      // Popup blocked: pay in this tab. The pending ref survives in localStorage, and the claim
+      // runs again when Stripe sends the buyer back (or on the next visit).
+      window.location.assign(url);
+      return;
+    }
+    try { w.opener = null; } catch { /* cross-origin already */ }
+    setCheckoutError(null);
+    setCheckoutStatus('waiting');
+    schedulePoll(pending.startedAt);
+  }, [userEmail, schedulePoll]);
+
+  const cancelPendingCheckout = useCallback(() => {
+    savePending(null);
+    if (pollTimer.current) clearTimeout(pollTimer.current);
+    setCheckoutStatus('idle');
+    setCheckoutError(null);
+  }, []);
+
+  // Boot: stored license, Stripe return (?payment=success&session_id=…), e-mailed restore link (?restore=…).
   useEffect(() => {
+    const stored = loadLicense();
+    if (stored) {
+      setLicense(stored);
+      verifyLicense(stored.token).then((r) => {
+        if (r.ok && r.valid && r.entitlements) {
+          const next = { ...stored, entitlements: r.entitlements, email: r.email ?? stored.email, verifiedAt: Date.now() };
+          saveLicense(next); setLicense(next);
+        } else if (r.ok && r.valid === false) {
+          saveLicense(null); setLicense(null); // refunded or revoked
+        } else if (r.status === 401) {
+          saveLicense(null); setLicense(null); // forged or tampered token
+        }
+        // network/not_configured: keep the cached entitlements
+      });
+    }
+    fetchPurchaseConfig().then(setPurchaseConfig);
+
     const params = new URLSearchParams(window.location.search);
-    if (params.get('payment') === 'success') {
-      setIsPro(true);
+    const sessionId = params.get('session_id') || undefined;
+    const restore = params.get('restore');
+    const cameBackFromStripe = params.get('payment') === 'success';
+    if (cameBackFromStripe || restore || params.has('purchase') || params.has('payment')) {
+      // Redirect parameters are never proof of payment; strip them either way.
       window.history.replaceState({}, '', window.location.pathname);
     }
+    if (restore) {
+      setCheckoutStatus('verifying');
+      redeemRestore(restore).then((r) => {
+        if (!(r.ok && finishCheckout(r))) {
+          setCheckoutStatus('error');
+          setCheckoutError('That restore link has expired or was already replaced. Request a new one below.');
+          setScreen('upgrade');
+        }
+      });
+    } else if (cameBackFromStripe && (sessionId || loadPending())) {
+      checkPurchaseNow(sessionId).then((ok) => {
+        if (!ok && loadPending()) schedulePoll(loadPending()!.startedAt);
+      });
+    } else if (params.get('purchase') === 'done' && stored) {
+      setScreen('purchase-success');
+    } else {
+      const pending = loadPending();
+      if (pending && !stored) { setCheckoutStatus('waiting'); schedulePoll(pending.startedAt); }
+    }
+
+    // Another tab (e.g. the one Stripe redirected to) stored a license: pick it up here.
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== LICENSE_KEY) return;
+      const l = loadLicense();
+      setLicense(l);
+      if (l) { savePending(null); setCheckoutStatus('idle'); }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      if (pollTimer.current) clearTimeout(pollTimer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Hydrate from localStorage
@@ -243,7 +400,9 @@ export function GrowOSProvider({ children }: { children: ReactNode }) {
         }
         if (data.primaryGoal) setPrimaryGoal(data.primaryGoal);
         if (data.growthScore) setGrowthScore(data.growthScore);
-        if (data.isPro) setIsPro(data.isPro);
+        // Grandfathered: buyers unlocked before verified licensing keep PRO on this device.
+        // Nothing sets this flag any more (the ?payment=success grant is gone), so it cannot spread.
+        if (data.isPro === true) setLegacyPro(true);
         if (data.activeProtocol) setActiveProtocol(data.activeProtocol);
 
         // Date-aware daily reset
@@ -254,7 +413,8 @@ export function GrowOSProvider({ children }: { children: ReactNode }) {
         }
 
         if (data.userName && data.archetypeId) {
-          setScreen(data.screen && data.screen !== 'welcome' ? data.screen : 'home');
+          const transient = ['welcome', 'purchase-success', 'upgrade'];
+          setScreen(data.screen && !transient.includes(data.screen) ? data.screen : 'home');
         } else if (data.screen) {
           setScreen(data.screen);
         }
@@ -309,7 +469,8 @@ export function GrowOSProvider({ children }: { children: ReactNode }) {
         archetypeId: archetype?.id || null,
         primaryGoal,
         growthScore,
-        isPro,
+        // Only the grandfathered flag is written back; licensed PRO lives in growos-license-v1.
+        isPro: legacyPro,
         activeProtocol,
         screen,
         lastCompletedDate: completedToday ? getTodayKey() : null,
@@ -317,7 +478,7 @@ export function GrowOSProvider({ children }: { children: ReactNode }) {
     } catch (e) {
       console.warn('GrowOS: Failed to save state', e);
     }
-  }, [userName, userEmail, subscribedToAcademy, quizAnswers, quizQuestionIndex, leadCaptureStage, archetype, primaryGoal, growthScore, isPro, activeProtocol, completedToday, screen]);
+  }, [userName, userEmail, subscribedToAcademy, quizAnswers, quizQuestionIndex, leadCaptureStage, archetype, primaryGoal, growthScore, legacyPro, activeProtocol, completedToday, screen]);
 
   // Persist journal
   useEffect(() => {
@@ -395,8 +556,13 @@ export function GrowOSProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  const navigate = useCallback((s: AppScreen) => {
+    if (s === 'upgrade') track('upgrade_clicked');
+    setScreen(s);
+  }, []);
+
   const value: GrowOSContextValue = {
-    screen, setScreen,
+    screen, setScreen: navigate,
     userName, setUserName,
     userEmail, setUserEmail,
     subscribedToAcademy, setSubscribedToAcademy,
@@ -416,7 +582,9 @@ export function GrowOSProvider({ children }: { children: ReactNode }) {
     timeAvailable, setTimeAvailable,
     currentStack, setCurrentStack,
     activeProtocol, setActiveProtocol,
-    isPro, setIsPro,
+    isPro, entitlements, licenseSource, license, purchaseConfig,
+    checkoutStatus, checkoutError, startCheckout, checkPurchaseNow: () => checkPurchaseNow(),
+    cancelPendingCheckout, applyLicense,
     journalEntries, addJournalEntry,
     dailyLogs, logDailyCompletion,
     notificationsEnabled, notificationTime,

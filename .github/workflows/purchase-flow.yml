@@ -1,0 +1,23 @@
+name: Purchase flow tests and build
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Block URL-based PRO grants
+        run: |
+          ! grep -RnE "get\(['\"]payment['\"]\)\s*===\s*['\"]success['\"]\)\s*\{?\s*setIsPro" src
+          ! grep -Rn "setIsPro(true)" src
+      - name: Unit tests
+        run: npx vitest run
+      - name: Production build
+        run: npm run build

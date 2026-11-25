@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { useGrowOS } from '@/lib/growos-context';
+import { track } from '@/lib/license';
 import { PROTOCOLS } from '@/lib/growos-data';
 import { ArrowRight } from 'lucide-react';
 import { useState } from 'react';
@@ -22,6 +23,7 @@ export default function GoalSelect() {
     if (!goal) return;
 
     setPrimaryGoal(selected);
+    track('plan_generated', { oncePerDevice: true });
     setGrowthScore(100);
     setStreak(1);
 

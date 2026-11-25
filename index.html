@@ -2,49 +2,70 @@
 <html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0b1220" />
     <title>GrowOS — Your Personal Growth Operating System</title>
     <meta name="description" content="A guided growth self-assessment and practical daily planning tool from Gear Up to Grow.">
     <meta name="author" content="Gear Up to Grow" />
-    
-    
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://gearuptogrow.com/growos/" />
-    <meta property="og:image" content="https://grow-plan.gearuptogrow.com/favicon.png" />
+    <meta property="og:url" content="https://grow-plan.gearuptogrow.com/" />
+    <meta property="og:image" content="https://grow-plan.gearuptogrow.com/og-image.png" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:image" content="https://grow-plan.gearuptogrow.com/favicon.png" />
-    <link rel="canonical" href="https://gearuptogrow.com/growos/" />
+    <meta name="twitter:image" content="https://grow-plan.gearuptogrow.com/og-image.png" />
+    <!-- Self-canonical: https://gearuptogrow.com/growos/ returns 404 (checked 2026-11-25). -->
+    <link rel="canonical" href="https://grow-plan.gearuptogrow.com/" />
     <meta property="og:title" content="GrowOS — Your Personal Growth Operating System">
   <meta name="twitter:title" content="GrowOS — Your Personal Growth Operating System">
   <meta property="og:description" content="A guided growth self-assessment and practical daily planning tool from Gear Up to Grow.">
   <meta name="twitter:description" content="A guided growth self-assessment and practical daily planning tool from Gear Up to Grow.">
 </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Static first paint and no-JS content; React replaces it on mount. Keep in sync with WelcomeScreen. -->
+      <main class="min-h-screen flex flex-col items-center justify-center px-6 text-center">
+        <img src="/logo-160.webp" alt="GearUpToGrow logo" width="80" height="80" fetchpriority="high" class="w-20 h-20 rounded-2xl mb-4 object-contain bg-white shadow-lg" />
+        <h1 class="text-4xl font-heading font-bold gradient-text">GrowOS</h1>
+        <p class="text-muted-foreground mt-1 text-sm tracking-wider uppercase">Your Personal Growth Operating System</p>
+        <p class="text-xl font-heading text-foreground/90 mt-8 mb-2">A free growth self-assessment and daily planning tool from Gear Up to Grow.</p>
+        <noscript><p class="text-muted-foreground mt-4">GrowOS needs JavaScript. Read the guides at <a class="text-primary underline" href="https://gearuptogrow.com/">gearuptogrow.com</a>.</p></noscript>
+      </main>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "SoftwareApplication",
-      "@id": "https://gearuptogrow.com/growos/#software",
+      "@id": "https://grow-plan.gearuptogrow.com/#software",
       "name": "GrowOS",
-      "url": "https://gearuptogrow.com/growos/",
+      "url": "https://grow-plan.gearuptogrow.com/",
       "applicationCategory": "LifestyleApplication",
       "operatingSystem": "Web",
       "description": "A guided growth self-assessment and practical daily planning tool from Gear Up to Grow.",
+      "isAccessibleForFree": true,
       "publisher": {
         "@type": "Organization",
         "@id": "https://gearuptogrow.com/#organization",
         "name": "Gear Up to Grow",
         "url": "https://gearuptogrow.com/"
       },
-      "offers": {
-        "@type": "Offer",
-        "price": "0",
-        "priceCurrency": "USD",
-        "availability": "https://schema.org/InStock",
-        "url": "https://gearuptogrow.com/growos/"
-      }
+      "offers": [
+        {
+          "@type": "Offer",
+          "name": "GrowOS Free",
+          "price": "0",
+          "priceCurrency": "USD",
+          "availability": "https://schema.org/InStock",
+          "url": "https://grow-plan.gearuptogrow.com/"
+        },
+        {
+          "@type": "Offer",
+          "name": "GrowOS PRO (one-time payment, lifetime access)",
+          "price": "7.99",
+          "priceCurrency": "USD",
+          "availability": "https://schema.org/InStock",
+          "url": "https://grow-plan.gearuptogrow.com/"
+        }
+      ]
     }
     </script>
   </body>
