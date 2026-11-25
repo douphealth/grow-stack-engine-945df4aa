@@ -1,3 +1,4 @@
+import { haptic } from '@/lib/utils';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGrowOS } from '@/lib/growos-context';
@@ -21,7 +22,7 @@ export default function ArchetypeReveal() {
         origin: { y: 0.6 },
         colors: ['#10b981', '#f59e0b', '#3b82f6', '#8b5cf6'],
       });
-      navigator.vibrate?.(200);
+      haptic(200);
     }, 1500);
     return () => clearTimeout(timer);
   }, []);

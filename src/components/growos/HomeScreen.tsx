@@ -200,6 +200,25 @@ export default function HomeScreen() {
         </motion.div>
       )}
 
+      {/* PRO offer: only after the free plan has delivered (today's stack is done), never before. */}
+      {!isPro && completedToday && (
+        <motion.button
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          onClick={() => setScreen('upgrade')}
+          className="w-full glass-card p-4 mb-4 flex items-center gap-3 text-left border border-accent/20"
+        >
+          <Crown className="w-5 h-5 text-accent shrink-0" aria-hidden />
+          <span className="flex-1">
+            <span className="block text-sm font-semibold text-foreground">Today’s stack is done. Want more?</span>
+            <span className="block text-xs text-muted-foreground">
+              PRO adds {PROTOCOLS.filter(p => p.isPremium).length} more protocols and an evening wind-down stack. $7.99 once.
+            </span>
+          </span>
+          <ChevronRight className="w-4 h-4 text-muted-foreground" aria-hidden />
+        </motion.button>
+      )}
+
       {/* 7-Day Growth Academy Card */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}

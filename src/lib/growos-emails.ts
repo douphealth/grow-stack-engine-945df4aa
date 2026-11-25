@@ -260,16 +260,14 @@ Consistency is hard when the initial excitement fades. To stay on track, you nee
 
 ### ⚡ THE MICRO-ACTION
 Make a choice today to upgrade to **GrowOS PRO** for a one-time payment of **$7.99** (lifetime access).
-Unlock:
-* **Unlimited Stacks** (Morning, Midday, Evening)
-* **20+ Science-Backed Protocols** (Focus Forge, Stress Detox, Deep Work)
-* **AI Smart Journal** & full **Radar Chart Analytics**
+PRO adds:
+* **All 10 growth protocols** (the free plan includes 3)
+* The **evening wind-down stack**, offered after 6 pm
 
-### 🔬 THE SCIENCE
-Deciding to invest in your tools creates an psychological effect called **sunk cost commitment**. When you pay for a system, your brain assigns it a higher value, boosting your habit consistency by 400% compared to free users.
+Everything you used this week (quiz, check-in, morning stack, journal, analytics) stays free.
 
 ### 🎯 YOUR GROWOS CHALLENGE
-Click below to upgrade to **GrowOS PRO** and lock in your lifetime growth system.`
+If the free plan helped this week, PRO gives you more protocols to rotate through. If it didn't, keep using the free plan. Either way, run tomorrow's stack.`
   }
 ];
 

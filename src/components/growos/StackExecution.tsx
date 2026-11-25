@@ -1,3 +1,4 @@
+import { haptic } from '@/lib/utils';
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGrowOS } from '@/lib/growos-context';
@@ -34,7 +35,7 @@ export default function StackExecution() {
   }, [timeLeft, isRunning]);
 
   const handleNext = useCallback(() => {
-    navigator.vibrate?.(100);
+    haptic(100);
 
     if (currentIndex < currentStack.length - 1) {
       setDirection(1);
@@ -52,7 +53,7 @@ export default function StackExecution() {
       }
 
       // Celebration confetti
-      navigator.vibrate?.(300);
+      haptic(300);
       const duration = 3000;
       const end = Date.now() + duration;
       const frame = () => {
@@ -261,20 +262,20 @@ export default function StackExecution() {
             {/* Controls */}
             <div className="flex items-center justify-center gap-5">
               <button
-                onClick={() => { setTimeLeft(action.durationSeconds); navigator.vibrate?.(50); }}
+                onClick={() => { setTimeLeft(action.durationSeconds); haptic(50); }}
                 className="p-3 rounded-full bg-secondary text-muted-foreground hover:text-foreground transition-all active:scale-90"
               >
                 <RotateCcw className="w-5 h-5" />
               </button>
               <motion.button
-                onClick={() => { setIsRunning(!isRunning); navigator.vibrate?.(30); }}
+                onClick={() => { setIsRunning(!isRunning); haptic(30); }}
                 whileTap={{ scale: 0.9 }}
                 className="p-6 rounded-full gradient-primary text-primary-foreground glow-primary hover:opacity-90 transition-all"
               >
                 {isRunning ? <Pause className="w-8 h-8" /> : <Play className="w-8 h-8 ml-0.5" />}
               </motion.button>
               <button
-                onClick={() => { handleNext(); navigator.vibrate?.(50); }}
+                onClick={() => { handleNext(); haptic(50); }}
                 className="p-3 rounded-full bg-secondary text-muted-foreground hover:text-foreground transition-all active:scale-90"
               >
                 <Check className="w-5 h-5" />

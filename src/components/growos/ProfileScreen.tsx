@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useGrowOS } from '@/lib/growos-context';
+import RestorePurchase from './RestorePurchase';
 import { generateShareCard, generateStreakCard, shareToNative } from '@/lib/share-cards';
 import { generateGrowthReport } from '@/lib/growos-report';
 import { Switch } from '@/components/ui/switch';
@@ -19,10 +20,11 @@ function getNotifStatus(): NotifStatus {
 
 export default function ProfileScreen() {
   const {
-    setScreen, userName, archetype, growthScore, streak, isPro, completedToday,
+    setScreen, userName, archetype, growthScore, streak, isPro, licenseSource, completedToday,
     notificationsEnabled, notificationTime, setNotificationsEnabled, setNotificationTime,
     dailyLogs, journalEntries,
   } = useGrowOS();
+  const [showRestore, setShowRestore] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [isSharingStreak, setIsSharingStreak] = useState(false);
   const [notifStatus, setNotifStatus] = useState<NotifStatus>(getNotifStatus());
@@ -251,9 +253,19 @@ export default function ProfileScreen() {
           </div>
           <div className="flex-1 text-left">
             <p className="font-semibold text-foreground">Upgrade to GrowOS PRO</p>
-            <p className="text-sm text-muted-foreground">Unlock everything for $7.99</p>
+            <p className="text-sm text-muted-foreground">All protocols and the evening stack, $7.99 once</p>
           </div>
         </motion.button>
+      )}
+
+      {/* Restore on a new device; also offered to grandfathered (pre-license) PRO users */}
+      {(!isPro || licenseSource === 'legacy') && (
+        <div className="mb-4">
+          <button onClick={() => setShowRestore(v => !v)} className="w-full text-left text-sm font-semibold text-primary px-1 py-2">
+            {isPro ? 'Link this PRO to your e-mail (use it on other devices)' : 'Already bought PRO? Restore purchase'}
+          </button>
+          {showRestore && <RestorePurchase />}
+        </div>
       )}
 
       {/* Daily reminder + status */}

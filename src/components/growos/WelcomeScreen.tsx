@@ -15,27 +15,21 @@ export default function WelcomeScreen() {
         <div className="absolute bottom-1/4 right-1/4 w-80 h-80 rounded-full bg-accent/5 blur-3xl" />
       </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8 }}
-        className="relative z-10 text-center max-w-md w-full"
-      >
+      {/* No entrance animation on the hero: it is the LCP element and must paint at once. */}
+      <div className="relative z-10 text-center max-w-md w-full">
         {/* Logo */}
-        <motion.div
-          initial={{ scale: 0.5, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
-          className="mb-8"
-        >
+        <div className="mb-8">
           <img
-            src="/logo.png"
+            src="/logo-160.webp"
             alt="GearUpToGrow logo"
+            width={80}
+            height={80}
+            fetchPriority="high"
             className="inline-flex items-center justify-center w-20 h-20 rounded-2xl mb-4 object-contain bg-white shadow-lg"
           />
           <h1 className="text-4xl font-heading font-bold gradient-text">GrowOS</h1>
           <p className="text-muted-foreground mt-1 text-sm tracking-wider uppercase">Your Personal Growth Operating System</p>
-        </motion.div>
+        </div>
 
         {/* Tagline */}
         <motion.p
@@ -63,7 +57,7 @@ export default function WelcomeScreen() {
           className="grid grid-cols-3 gap-3 mb-10"
         >
           {[
-            { emoji: '🧠', label: 'AI-Adaptive' },
+            { emoji: '🧠', label: 'Adapts to you' },
             { emoji: '⚡', label: 'Micro-Actions' },
             { emoji: '📊', label: 'Track Growth' },
           ].map((f) => (
@@ -103,7 +97,7 @@ export default function WelcomeScreen() {
             Powered by <a href="https://gearuptogrow.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">gearuptogrow.com</a>
           </p>
         </motion.div>
-      </motion.div>
+      </div>
     </div>
   );
 }
