@@ -6,7 +6,7 @@ import { ensureSchema, licenseById } from '../../../server/db';
 import { issueToken, maskEmail } from '../../../server/grant';
 
 export const onRequestPost = async ({ request, env }: Ctx) => {
-  if (!sameOriginOrNoOrigin(request)) return json({ ok: false, error: 'forbidden' }, 403);
+  if (!sameOriginOrNoOrigin(request, env)) return json({ ok: false, error: 'forbidden' }, 403);
   if (!env.DB || !env.LICENSE_SECRET) return notConfigured('Licensing');
   const body = await readJson<{ code?: string }>(request);
   const claims = await verify<{ lid: string }>(env.LICENSE_SECRET, 'restore', body?.code);

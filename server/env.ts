@@ -35,6 +35,8 @@ export interface Env {
   /** Brevo transactional key; enables restore-by-email and the purchase confirmation email. */
   BREVO_API_KEY?: string;
   MAIL_FROM?: string;
+  /** Public origin behind the Worker proxy, e.g. https://grow-plan.gearuptogrow.com (production only). */
+  APP_ORIGIN?: string;
   MAIL_API_BASE?: string;
   ADDON_AUDIO_KEY?: string;
   ADDON_BLUEPRINT_KEY?: string;

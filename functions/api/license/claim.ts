@@ -8,7 +8,7 @@
  * Returns { ok:true, token, entitlements } or { ok:false, pending:true } while the payment is not visible yet.
  */
 import type { Ctx } from '../../../server/env';
-import { json, notConfigured, readJson, sameOriginOrNoOrigin } from '../../../server/http';
+import { json, notConfigured, readJson, sameOriginOrNoOrigin, appOrigin } from '../../../server/http';
 import { ensureSchema, licenseById, purchaseByRef } from '../../../server/db';
 import { grantFromSession, issueToken, maskEmail } from '../../../server/grant';
 import { getSession, listCompleteSessions, StripeError } from '../../../server/stripe';
@@ -18,7 +18,7 @@ const REF_RE = /^gos_[a-f0-9]{24,64}$/;
 
 export const onRequestPost = async (ctx: Ctx) => {
   const { request, env } = ctx;
-  if (!sameOriginOrNoOrigin(request)) return json({ ok: false, error: 'forbidden' }, 403);
+  if (!sameOriginOrNoOrigin(request, env)) return json({ ok: false, error: 'forbidden' }, 403);
   if (!env.DB || !env.LICENSE_SECRET) return notConfigured('Licensing');
   const body = await readJson<{ session_id?: string; ref?: string }>(request);
   const sessionId = typeof body?.session_id === 'string' && SESSION_RE.test(body.session_id) ? body.session_id : null;
@@ -26,7 +26,7 @@ export const onRequestPost = async (ctx: Ctx) => {
   if (!sessionId && !ref) return json({ ok: false, error: 'bad_request' }, 400);
 
   await ensureSchema(env.DB);
-  const origin = new URL(request.url).origin;
+  const origin = appOrigin(env, request);
 
   // 1. A webhook may already have stored the purchase for this ref.
   if (ref) {
