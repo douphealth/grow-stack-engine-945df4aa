@@ -1,0 +1,29 @@
+# Cloudflare Pages config for grow-stack-engine-945df4aa (source of truth for bindings).
+# Top level = preview deployments (branches); [env.production] = main.
+# Secrets (LICENSE_SECRET, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, BREVO_API_KEY) are set with
+# `wrangler pages secret put <NAME> --project-name grow-stack-engine-945df4aa [--env preview]`.
+# See docs/PURCHASE_FLOW.md and docs/CUTOVER.md.
+name = "grow-stack-engine-945df4aa"
+pages_build_output_dir = "dist"
+compatibility_date = "2026-04-15"
+
+[vars]
+MAIL_FROM = "info@gearuptogrow.com"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "growos-licenses-preview"
+database_id = "6edd9853-bb93-4504-95fd-4440ac3c4659"
+
+[env.production.vars]
+MAIL_FROM = "info@gearuptogrow.com"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "growos-licenses"
+database_id = "9af870b2-a218-43a7-ad26-7801066675a2"
+
+# Add when the add-on files are uploaded (then the app starts offering add-ons):
+# [[r2_buckets]] / [[env.production.r2_buckets]]
+# binding = "ADDON_FILES"
+# bucket_name = "growos-addons"
